@@ -118,13 +118,13 @@ const addEmployee = async () => {
         {
             type: "list",
             name: "role_id",
-            message: "Select employee's role:",
+            message: "Select employee's job role:",
             choices: roleChoices
         },
         {
             type: "list",
             name: "manager_id",
-            message: "Select employee's manager:",
+            message: "Select employee's direct manager (if applicable):",
             choices: employeeChoices
         }
     ]);
@@ -132,7 +132,7 @@ const addEmployee = async () => {
         INSERT INTO employee (first_name, last_name, role_id, manager_id)
         VALUES ($1, $2, $3, $4)
     `, [answers.first_name, answers.last_name, answers.role_id, answers.manager_id]);
-    console.log("Employee added!");
+    console.log(`${answers.first_name} ${answers.last_name} added to the database!`);
     mainMenu();
 }
 
@@ -149,7 +149,8 @@ const addDepartment = async () => {
         INSERT INTO department (name)
         VALUES ($1)
     `, [answers.name]);
-    console.log("Department added!");
+    //print department name added
+    console.log(`${answers.name} department added to the database!`);
     mainMenu();
 }
 
@@ -166,17 +167,17 @@ const addRole = async () => {
         {
             type: "input",
             name: "title",
-            message: "Enter role title:"
+            message: "Enter the name of the role:"
         },
         {
             type: "input",
             name: "salary",
-            message: "Enter role salary:"
+            message: "Enter the salary for this role:"
         },
         {
             type: "list",
             name: "department_id",
-            message: "Select role department:",
+            message: "Select a department this role belongs to:",
             choices: departmentChoices
         }
     ]);
@@ -208,13 +209,13 @@ const updateEmployeeRole = async () => {
         {
             type: "list",
             name: "employee_id",
-            message: "Select employee to update:",
+            message: "Select an employee to update:",
             choices: employeeChoices
         },
         {
             type: "list",
             name: "role_id",
-            message: "Select employee's new role:",
+            message: "Select the employee's new role:",
             choices: roleChoices
         }
     ]);
@@ -223,7 +224,7 @@ const updateEmployeeRole = async () => {
         SET role_id = $1
         WHERE id = $2
     `, [answers.role_id, answers.employee_id]);
-    console.log("Employee role updated!");
+    console.log(`${employeeChoices.find(employee => employee.value === answers.employee_id).name}'s role updated!`);
     mainMenu();
 }
 
