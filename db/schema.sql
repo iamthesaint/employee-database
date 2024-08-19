@@ -12,10 +12,10 @@ CREATE TABLE department
 CREATE TABLE role
 (
     id SERIAL PRIMARY KEY,
-    title VARCHAR(30) NOT NULL UNIQUE,
-    department_id INT NOT NULL,
-    salary DECIMAL(10, 0) NOT NULL,
-    FOREIGN KEY (department_id) REFERENCES department (id)
+    title VARCHAR(30) UNIQUE NOT NULL,
+    department VARCHAR(30) NOT NULL,
+    salary DECIMAL(10, 2) UNIQUE NOT NULL,
+    FOREIGN KEY (department) REFERENCES department (name)
         ON DELETE CASCADE
         ON UPDATE CASCADE
 );
@@ -25,21 +25,39 @@ CREATE TABLE employee
     id SERIAL PRIMARY KEY,
     first_name VARCHAR(30) NOT NULL,
     last_name VARCHAR(30) NOT NULL,
-    role_title VARCHAR(30) NOT NULL,
-    department_name VARCHAR(30) NOT NULL,
-    role_salary DECIMAL(10, 0) NOT NULL,
-    manager_id INT,
-    FOREIGN KEY (role_title) REFERENCES role (title)
+    title VARCHAR(30) NOT NULL,
+    department VARCHAR(30) NOT NULL,
+    salary DECIMAL(10, 2) NOT NULL,
+    manager_name VARCHAR(60),
+    FOREIGN KEY (title) REFERENCES role (title)
         ON DELETE CASCADE
         ON UPDATE CASCADE,
-    FOREIGN KEY (department_name) REFERENCES department (name)
+    FOREIGN KEY (department) REFERENCES department (name)
         ON DELETE CASCADE
         ON UPDATE CASCADE,
-    FOREIGN KEY (role_salary) REFERENCES role (salary)
+    FOREIGN KEY (salary) REFERENCES role (salary)
         ON DELETE CASCADE
-        ON UPDATE CASCADE,
-    FOREIGN KEY (manager_id) REFERENCES employee (id)
-        ON DELETE CASCADE
-        ON UPDATE CASCADE  
+        ON UPDATE CASCADE
 );
+
+CREATE OR REPLACE FUNCTION check_manager_exists()
+RETURNS TRIGGER AS $$
+BEGIN
+    IF (NEW.manager_name IS NOT NULL) THEN
+        PERFORM 1
+        FROM employee
+        WHERE CONCAT(first_name, ' ', last_name) = NEW.manager_name;
+        
+        IF NOT FOUND THEN
+            RAISE EXCEPTION 'Manager % does not exist', NEW.manager_name;
+        END IF;
+    END IF;
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER enforce_manager_exists
+BEFORE INSERT OR UPDATE ON employee
+FOR EACH ROW
+EXECUTE FUNCTION check_manager_exists();
 

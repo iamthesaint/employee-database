@@ -2,9 +2,9 @@ import inquirer from "inquirer";
 import { pool, connectToDb } from "./connection.js";
 
 const start = async () => {
-  await connectToDb();
-  console.log("Welcome to Employee Tracker!");
-  mainMenu();
+    await connectToDb();
+    console.log("Welcome to Employee Tracker!");
+    mainMenu();
 }
 
 const mainMenu = async () => {
@@ -14,38 +14,38 @@ const mainMenu = async () => {
             name: "choice",
             message: "What would you like to do?",
             choices: [
-                "View all employees",
-                "View all departments",
-                "View all roles",
-                "Add employee",
-                "Add department",
-                "Add role",
-                "Update employee role",
+                "View All Employees",
+                "View All Departments",
+                "View All Roles",
+                "Add Employee",
+                "Add Department",
+                "Add Role",
+                "Update Employee Role",
                 "Quit"
             ]
         },
     ]);
 
     switch (answers.choice) {
-        case "View all employees":
+        case "View All Employees":
             viewEmployees();
             break;
-        case "View all departments":
+        case "View All Departments":
             viewDepartments();
             break;
-        case "View all roles":
+        case "View All Roles":
             viewRoles();
             break;
-        case "Add employee":
+        case "Add Employee":
             addEmployee();
             break;
-        case "Add department":
+        case "Add Department":
             addDepartment();
             break;
-        case "Add role":
+        case "Add Role":
             addRole();
             break;
-        case "Update employee role":
+        case "Update Employee Role":
             updateEmployeeRole();
             break;
         case "Quit":
@@ -54,18 +54,31 @@ const mainMenu = async () => {
     }
 }
 
+
 //function to view all employees
 const viewEmployees = async () => {
     const employees = await pool.query(`
-        SELECT employee.id, employee.first_name, employee.last_name, role.title, department.name AS department, role.salary, CONCAT(manager.first_name, ' ', manager.last_name) AS manager
-        FROM employee
-        LEFT JOIN role ON employee.role_id = role.id
-        LEFT JOIN department ON role.department_id = department.id
-        LEFT JOIN employee manager ON employee.manager_id = manager.id
+        SELECT 
+            e.id, 
+            e.first_name, 
+            e.last_name, 
+            r.title, 
+            r.salary, 
+            d.name AS department, 
+            CONCAT(m.first_name, ' ', m.last_name) AS manager
+        FROM 
+            employee e
+        LEFT JOIN 
+            role r ON e.title = r.title AND e.salary = r.salary AND e.department = r.department
+        LEFT JOIN 
+            department d ON e.department = d.name
+        LEFT JOIN 
+            employee m ON e.manager_first_name = m.first_name AND e.manager_last_name = m.last_name
     `);
     console.table(employees.rows);
     mainMenu();
 }
+
 
 //function to view all departments
 const viewDepartments = async () => {
@@ -76,16 +89,18 @@ const viewDepartments = async () => {
     mainMenu();
 }
 
+
 //function to view all roles
 const viewRoles = async () => {
     const roles = await pool.query(`
-        SELECT role.id, role.title, department.name AS department, role.salary
+        SELECT role.id, role.title, role.salary, department.name AS department
         FROM role
-        LEFT JOIN department ON role.department_id = department.id
+        LEFT JOIN department ON role.department = department.name
     `);
     console.table(roles.rows);
     mainMenu();
 }
+
 
 //function to add an employee
 const addEmployee = async () => {
@@ -103,7 +118,6 @@ const addEmployee = async () => {
         name: `${employee.first_name} ${employee.last_name}`,
         value: employee.id
     }));
-    employeeChoices.unshift({ name: "None", value: null });
     const answers = await inquirer.prompt([
         {
             type: "input",
@@ -117,24 +131,33 @@ const addEmployee = async () => {
         },
         {
             type: "list",
-            name: "role_id",
-            message: "Select employee's job role:",
+            name: "title",
+            message: "Select employee's role:",
             choices: roleChoices
         },
         {
+            type: "input",
+            name: "salary",
+            message: "Enter employee's salary:"
+        },
+        {
             type: "list",
-            name: "manager_id",
-            message: "Select employee's direct manager (if applicable):",
+            name: "manager",
+            message: "Select employee's manager:",
             choices: employeeChoices
         }
     ]);
+    const manager = employees.rows.find(employee => employee.id === answers.manager);
+    const managerName = manager ? `${manager.first_name} ${manager.last_name}` : `NULL`;
     await pool.query(`
-        INSERT INTO employee (first_name, last_name, role_id, manager_id)
-        VALUES ($1, $2, $3, $4)
-    `, [answers.first_name, answers.last_name, answers.role_id, answers.manager_id]);
+        INSERT INTO employee (first_name, last_name, title, salary, manager_name)
+        VALUES ($1, $2, $3, $4, $5)
+    `,
+        [answers.first_name, answers.last_name, answers.title, answers.salary, managerName]);
     console.log(`${answers.first_name} ${answers.last_name} added to the database!`);
     mainMenu();
 }
+
 
 //function to add a department
 const addDepartment = async () => {
@@ -154,6 +177,7 @@ const addDepartment = async () => {
     mainMenu();
 }
 
+
 //function to add a role
 const addRole = async () => {
     const departments = await pool.query(`
@@ -167,70 +191,76 @@ const addRole = async () => {
         {
             type: "input",
             name: "title",
-            message: "Enter the name of the role:"
+            message: "Enter the title of the new role:"
+        },
+        {
+            type: "list",
+            name: "department",
+            message: "Select a department this role belongs to:",
+            choices: departmentChoices
         },
         {
             type: "input",
             name: "salary",
             message: "Enter the salary for this role:"
         },
-        {
-            type: "list",
-            name: "department_id",
-            message: "Select a department this role belongs to:",
-            choices: departmentChoices
-        }
+
     ]);
     await pool.query(`
-        INSERT INTO role (title, salary, department_id)
+        INSERT INTO role (title, department, salary)
         VALUES ($1, $2, $3)
-    `, [answers.title, answers.salary, answers.department_id]);
-    console.log("Role added!");
-    mainMenu();
+    `, [answers.title, answers.department, answers.salary]);
 }
+
 
 //function to update an employee's role
 const updateEmployeeRole = async () => {
-    const employees = await pool.query(`
-        SELECT * FROM employee
-    `);
-    const roles = await pool.query(`
-        SELECT * FROM role
-    `);
-    const employeeChoices = employees.rows.map(employee => ({
-        name: `${employee.first_name} ${employee.last_name}`,
-        value: employee.id
-    }));
-    const roleChoices = roles.rows.map(role => ({
-        name: role.title,
-        value: role.id
-    }));
-    const answers = await inquirer.prompt([
-        {
-            type: "list",
-            name: "employee_id",
-            message: "Select an employee to update:",
-            choices: employeeChoices
-        },
-        {
-            type: "list",
-            name: "role_id",
-            message: "Select the employee's new role:",
-            choices: roleChoices
-        }
-    ]);
-    await pool.query(`
-        UPDATE employee
-        SET role_id = $1
-        WHERE id = $2
-    `, [answers.role_id, answers.employee_id]);
-    console.log(`${employeeChoices.find(employee => employee.value === answers.employee_id).name}'s role updated!`);
-    mainMenu();
+    try {
+        const employees = await pool.query(`
+            SELECT * FROM employee
+        `);
+        const roles = await pool.query(`
+            SELECT * FROM role
+        `);
+        const employeeChoices = employees.rows.map(employee => ({
+            name: `${employee.first_name} ${employee.last_name}`,
+            value: employee.id
+        }));
+        const roleChoices = roles.rows.map(role => ({
+            name: role.title,
+            value: role.id
+        }));
+        const answers = await inquirer.prompt([
+            {
+                type: "list",
+                name: "employee_id",
+                message: "Select an employee to update:",
+                choices: employeeChoices
+            },
+            {
+                type: "list",
+                name: "role_id",
+                message: "Select the employee's new role:",
+                choices: roleChoices
+            }
+        ]);
+        const selectedRole = roles.rows.find(role => role.id === answers.role_id);
+        await pool.query(`
+            UPDATE employee
+            SET title = $1, salary = $2
+            WHERE id = $3
+        `, [selectedRole.title, selectedRole.salary, answers.employee_id]);
+        console.log("Employee role updated!");
+    } catch (error) {
+        console.error('Error updating employee role:', error.message);
+    } finally {
+        mainMenu();
+    }
 }
 
 //function to quit
 const quit = () => {
-    console.log("Goodbye!");
+    console.log("Thanks for using Employee Tracker! See you soon!");
     process.exit();
 }
 
