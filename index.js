@@ -21,6 +21,13 @@ const mainMenu = async () => {
                 "Add Department",
                 "Add Role",
                 "Update Employee Role",
+                "Update Employee Manager",
+                "View Employees by Manager",
+                "View Employees by Department",
+                "Delete Employee",
+                "Delete Department",
+                "Delete Role",
+                "View Total Utilized Budget by Department",
                 "Quit"
             ]
         },
@@ -48,12 +55,32 @@ const mainMenu = async () => {
         case "Update Employee Role":
             updateEmployeeRole();
             break;
+        case "Update Employee Manager":
+            updateEmployeeManager();
+            break;
+        case "View Employees by Manager":
+            viewEmployeesByManager();
+            break;
+        case "View Employees by Department":
+            viewEmployeesByDepartment();
+            break;
+        case "Delete Employee":
+            deleteEmployee();
+            break;
+        case "Delete Department":
+            deleteDepartment();
+            break;
+        case "Delete Role":
+            deleteRole();
+            break;
+        case "View Total Utilized Budget by Department":
+            viewCombinedSalariesByDepartment();
+            break;
         case "Quit":
             quit();
             break;
     }
 }
-
 
 //function to view all employees
 const viewEmployees = async () => {
@@ -103,11 +130,13 @@ const addEmployee = async () => {
     `);
     const roleChoices = roles.rows.map(role => ({
         name: role.title,
-        value: role.id
+        value: role.title,
+        department: role.department,
+        salary: role.salary
     }));
     const employeeChoices = employees.rows.map(employee => ({
         name: `${employee.first_name} ${employee.last_name}`,
-        value: employee.id
+        value: `${employee.first_name} ${employee.last_name}`
     }));
     const answers = await inquirer.prompt([
         {
@@ -127,11 +156,6 @@ const addEmployee = async () => {
             choices: roleChoices
         },
         {
-            type: "input",
-            name: "salary",
-            message: "Enter employee's salary:"
-        },
-        {
             type: "list",
             name: "manager",
             message: "Select employee's manager:",
@@ -140,12 +164,15 @@ const addEmployee = async () => {
     ]);
     const manager = employees.rows.find(employee => employee.id === answers.manager);
     const managerName = manager ? `${manager.first_name} ${manager.last_name}` : null;
-    const department = departments.rows.find(department => department.id === answers.title);
+    const selectedRole = roleChoices.find(role => role.value === answers.title);
+    const department = selectedRole ? selectedRole.department : null;
+    const salary = selectedRole ? selectedRole.salary : null;
+
     await pool.query(`
         INSERT INTO employee (first_name, last_name, title, department, salary, manager_name)
         VALUES ($1, $2, $3, $4, $5, $6)
     `,
-        [answers.first_name, answers.last_name, answers.title, department, answers.salary, managerName]);
+        [answers.first_name, answers.last_name, answers.title, department, salary, managerName]);
     console.log(`${answers.first_name} ${answers.last_name} added to the database!`);
     mainMenu();
 }
@@ -176,7 +203,7 @@ const addRole = async () => {
     `);
     const departmentChoices = departments.rows.map(department => ({
         name: department.name,
-        value: department.id
+        value: department.name
     }));
     const answers = await inquirer.prompt([
         {
@@ -201,6 +228,8 @@ const addRole = async () => {
         INSERT INTO role (title, department, salary)
         VALUES ($1, $2, $3)
     `, [answers.title, answers.department, answers.salary]);
+    console.log(`${answers.title} added to Roles!`);
+    mainMenu();
 }
 
 
@@ -241,12 +270,198 @@ const updateEmployeeRole = async () => {
             SET title = $1, salary = $2
             WHERE id = $3
         `, [selectedRole.title, selectedRole.salary, answers.employee_id]);
-        console.log("Employee role updated!");
+        console.log(`Updated role to ${selectedRole.title}!`);
     } catch (error) {
         console.error('Error updating employee role:', error.message);
     } finally {
         mainMenu();
     }
+}
+
+//function to update an employee's manager
+const updateEmployeeManager = async () => {
+    const employees = await pool.query(`
+        SELECT * FROM employee
+    `);
+    const employeeChoices = employees.rows.map(employee => ({
+        name: `${employee.first_name} ${employee.last_name}`,
+        value: employee.id
+    }));
+    const answers = await inquirer.prompt([
+        {
+            type: "list",
+            name: "employee_id",
+            message: "Select an employee to update:",
+            choices: employeeChoices
+        },
+        {
+            type: "list",
+            name: "manager_id",
+            message: "Select the employee's new manager:",
+            choices: employeeChoices
+        }
+    ]);
+    const manager = employees.rows.find(employee => employee.id === answers.manager_id);
+    const managerName = `${manager.first_name} ${manager.last_name}`;
+    await pool.query(`
+        UPDATE employee
+        SET manager_name = $1
+        WHERE id = $2
+    `, [managerName, answers.employee_id]);
+    console.log(`Updated manager to ${managerName}!`);
+    mainMenu();
+}
+
+//function to view employees by manager
+const viewEmployeesByManager = async () => {
+    const employees = await pool.query(`
+        SELECT * FROM employee
+    `);
+    const managerChoices = employees.rows.map(employee => ({
+        name: `${employee.first_name} ${employee.last_name}`,
+        value: employee.id
+    }));
+    const answers = await inquirer.prompt([
+        {
+            type: "list",
+            name: "manager_id",
+            message: "Select a manager to view their employees:",
+            choices: managerChoices
+        }
+    ]);
+    const manager = employees.rows.find(employee => employee.id === answers.manager_id);
+    const managerName = `${manager.first_name} ${manager.last_name}`;
+    const employeesUnderManager = await pool.query(`
+        SELECT * FROM employee
+        WHERE manager_name = $1
+    `, [managerName]);
+    console.table(employeesUnderManager.rows);
+    mainMenu();
+}
+
+//function to view employees by department
+const viewEmployeesByDepartment = async () => {
+    const departments = await pool.query(`
+        SELECT * FROM department
+    `);
+    const departmentChoices = departments.rows.map(department => ({
+        name: department.name,
+        value: department.name
+    }));
+    const answers = await inquirer.prompt([
+        {
+            type: "list",
+            name: "department",
+            message: "Select a department to view employees:",
+            choices: departmentChoices
+        }
+    ]);
+    const employeesInDepartment = await pool.query(`
+        SELECT * FROM employee
+        WHERE department = $1
+    `, [answers.department]);
+    console.table(employeesInDepartment.rows);
+    mainMenu();
+}
+
+//function to delete an employee
+const deleteEmployee = async () => {
+    const employees = await pool.query(`
+        SELECT * FROM employee
+    `);
+    const employeeChoices = employees.rows.map(employee => ({
+        name: `${employee.first_name} ${employee.last_name}`,
+        value: employee.id
+    }));
+    const answers = await inquirer.prompt([
+        {
+            type: "list",
+            name: "employee_id",
+            message: "Select an employee to delete:",
+            choices: employeeChoices
+        }
+    ]);
+    await pool.query(`
+        DELETE FROM employee
+        WHERE id = $1
+    `, [answers.employee_id]);
+    console.log(`Employee deleted!`);
+    mainMenu();
+}
+
+//function to delete a department
+const deleteDepartment = async () => {
+    const departments = await pool.query(`
+        SELECT * FROM department
+    `);
+    const departmentChoices = departments.rows.map(department => ({
+        name: department.name,
+        value: department.id
+    }));
+    const answers = await inquirer.prompt([
+        {
+            type: "list",
+            name: "department_id",
+            message: "Select a department to delete:",
+            choices: departmentChoices
+        }
+    ]);
+    await pool.query(`
+        DELETE FROM department
+        WHERE id = $1
+    `, [answers.department_id]);
+    console.log(`Department deleted!`);
+    mainMenu();
+}
+
+//function to delete a role
+const deleteRole = async () => {
+    const roles = await pool.query(`
+        SELECT * FROM role
+    `);
+    const roleChoices = roles.rows.map(role => ({
+        name: role.title,
+        value: role.id
+    }));
+    const answers = await inquirer.prompt([
+        {
+            type: "list",
+            name: "role_id",
+            message: "Select a role to delete:",
+            choices: roleChoices
+        }
+    ]);
+    await pool.query(`
+        DELETE FROM role
+        WHERE id = $1
+    `, [answers.role_id]);
+    console.log(`Role deleted!`);
+    mainMenu();
+}
+
+const viewCombinedSalariesByDepartment = async () => {
+    const departments = await pool.query(`
+        SELECT * FROM department
+    `);
+    const departmentChoices = departments.rows.map(department => ({
+        name: department.name,
+        value: department.name
+    }));
+    const answers = await inquirer.prompt([
+        {
+            type: "list",
+            name: "department_name",
+            message: "Select a department to view total utilized budget:",
+            choices: departmentChoices
+        }
+    ]);
+    const combinedSalaries = await pool.query(`
+        SELECT SUM(employee.salary) AS utilized_budget
+        FROM employee
+        WHERE employee.department = $1
+    `, [answers.department_name]);
+    console.table(combinedSalaries.rows);
+    mainMenu();
 }
 
 //function to quit

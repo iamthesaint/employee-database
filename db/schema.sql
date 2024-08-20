@@ -60,4 +60,3 @@ CREATE TRIGGER enforce_manager_exists
 BEFORE INSERT OR UPDATE ON employee
 FOR EACH ROW
 EXECUTE FUNCTION check_manager_exists();
-
