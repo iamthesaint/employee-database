@@ -439,6 +439,7 @@ const deleteRole = async () => {
     mainMenu();
 }
 
+//function to view utilized budget by department (aka combined salaries)
 const viewCombinedSalariesByDepartment = async () => {
     const departments = await pool.query(`
         SELECT * FROM department
