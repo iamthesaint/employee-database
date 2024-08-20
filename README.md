@@ -18,6 +18,10 @@ A command line interface application utilizing Node.js, Inquirer, and PostgreSQL
 ## Usage
 From the command line, run ```node index.js``` to begin. Follow the prompts to view or modify employees in your database.
 
+
+Walkthrough Video Link:
+https://drive.google.com/file/d/1udiLQRtbNS_n6rL7FAs3GF_xXQrC1a3P/view?usp=sharing
+
 ## License
 ![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)
 
