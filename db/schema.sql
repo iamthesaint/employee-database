@@ -14,7 +14,7 @@ CREATE TABLE role
     id SERIAL PRIMARY KEY,
     title VARCHAR(30) UNIQUE NOT NULL,
     department VARCHAR(30) NOT NULL,
-    salary DECIMAL(10, 2) UNIQUE NOT NULL,
+    salary DECIMAL(10, 0) UNIQUE NOT NULL,
     FOREIGN KEY (department) REFERENCES department (name)
         ON DELETE CASCADE
         ON UPDATE CASCADE
@@ -27,7 +27,7 @@ CREATE TABLE employee
     last_name VARCHAR(30) NOT NULL,
     title VARCHAR(30) NOT NULL,
     department VARCHAR(30) NOT NULL,
-    salary DECIMAL(10, 2) NOT NULL,
+    salary DECIMAL(10, 0) NOT NULL,
     manager_name VARCHAR(60),
     FOREIGN KEY (title) REFERENCES role (title)
         ON DELETE CASCADE

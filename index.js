@@ -58,22 +58,10 @@ const mainMenu = async () => {
 //function to view all employees
 const viewEmployees = async () => {
     const employees = await pool.query(`
-        SELECT 
-            e.id, 
-            e.first_name, 
-            e.last_name, 
-            r.title, 
-            r.salary, 
-            d.name AS department, 
-            CONCAT(m.first_name, ' ', m.last_name) AS manager
-        FROM 
-            employee e
-        LEFT JOIN 
-            role r ON e.title = r.title AND e.salary = r.salary AND e.department = r.department
-        LEFT JOIN 
-            department d ON e.department = d.name
-        LEFT JOIN 
-            employee m ON e.manager_first_name = m.first_name AND e.manager_last_name = m.last_name
+        SELECT employee.id, employee.first_name, employee.last_name, role.title, role.salary, department.name AS department, employee.manager_name
+        FROM employee
+        LEFT JOIN role ON employee.title = role.title
+        LEFT JOIN department ON role.department = department.name
     `);
     console.table(employees.rows);
     mainMenu();
@@ -109,6 +97,9 @@ const addEmployee = async () => {
     `);
     const employees = await pool.query(`
         SELECT * FROM employee
+    `);
+    const departments = await pool.query(`
+        SELECT * FROM department
     `);
     const roleChoices = roles.rows.map(role => ({
         name: role.title,
@@ -148,12 +139,13 @@ const addEmployee = async () => {
         }
     ]);
     const manager = employees.rows.find(employee => employee.id === answers.manager);
-    const managerName = manager ? `${manager.first_name} ${manager.last_name}` : `NULL`;
+    const managerName = manager ? `${manager.first_name} ${manager.last_name}` : null;
+    const department = departments.rows.find(department => department.id === answers.title);
     await pool.query(`
-        INSERT INTO employee (first_name, last_name, title, salary, manager_name)
-        VALUES ($1, $2, $3, $4, $5)
+        INSERT INTO employee (first_name, last_name, title, department, salary, manager_name)
+        VALUES ($1, $2, $3, $4, $5, $6)
     `,
-        [answers.first_name, answers.last_name, answers.title, answers.salary, managerName]);
+        [answers.first_name, answers.last_name, answers.title, department, answers.salary, managerName]);
     console.log(`${answers.first_name} ${answers.last_name} added to the database!`);
     mainMenu();
 }
@@ -172,8 +164,7 @@ const addDepartment = async () => {
         INSERT INTO department (name)
         VALUES ($1)
     `, [answers.name]);
-    //print department name added
-    console.log(`${answers.name} department added to the database!`);
+    console.log(`${answers.name} Department added to the database!`);
     mainMenu();
 }
 
